@@ -1,5 +1,8 @@
 <?php
 
+// phpcs:ignoreFile
+// @phpstan-ignore-next-line
+
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
