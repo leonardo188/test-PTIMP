@@ -3,7 +3,7 @@ set -e
 
 # Wait for database to be ready
 echo "Waiting for database connection..."
-until php artisan db:show 2>/dev/null; do
+until php -r "new PDO('mysql:host=db;port=3306;dbname=blog_db', 'blog_user', 'blog_pass');" 2>/dev/null; do
   echo "Database is unavailable - sleeping"
   sleep 2
 done
