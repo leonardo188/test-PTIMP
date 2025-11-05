@@ -5,6 +5,11 @@ use App\Http\Controllers\Api\PostController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 
+// Health check endpoint for Docker
+Route::get('health', function () {
+    return response()->json(['status' => 'ok'], 200);
+});
+
 Route::prefix('auth')->group(function () {
     Route::post('register', [RegisteredUserController::class, 'store']);
     Route::post('login', [AuthenticatedSessionController::class, 'store']);

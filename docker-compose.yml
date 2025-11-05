@@ -50,11 +50,11 @@ services:
     networks:
       - app-net
     healthcheck:
-      test: ["CMD", "php", "artisan", "db:show"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
       interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 60s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
 
   # --- Next.js Frontend ---
   nextjs:

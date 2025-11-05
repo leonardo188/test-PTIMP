@@ -10,6 +10,12 @@ done
 
 echo "Database is up - executing commands"
 
+# Generate APP_KEY if empty (safety check)
+if grep -q "APP_KEY=$" /var/www/.env; then
+  echo "APP_KEY is empty, generating..."
+  php artisan key:generate --force --no-interaction
+fi
+
 # Run migrations
 php artisan migrate --force
 

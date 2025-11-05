@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
+    curl \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
@@ -55,6 +56,9 @@ COPY --from=builder /var/www /var/www
 # Copy .env.example and create .env if not exists (for container startup)
 COPY .env.example /var/www/.env.example
 RUN if [ ! -f /var/www/.env ]; then cp /var/www/.env.example /var/www/.env; fi
+
+# Generate APP_KEY before switching to www-data user
+RUN php artisan key:generate --force --no-interaction
 
 # Create necessary directories and set permissions
 RUN mkdir -p /var/www/storage/framework/cache/data \
