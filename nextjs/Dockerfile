@@ -1,30 +1,59 @@
-FROM node:20-bullseye AS builder
-
+# Stage 1: Dependencies
+FROM node:20-alpine AS deps
 WORKDIR /app
 
-# 1. Copy package.json dan install dependency
-COPY package*.json ./
+# Install build dependencies needed for native modules (lightningcss)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    libc6-compat
 
-# 2. Install dependency (pastikan lightningcss dikompilasi ulang)
-RUN npm install --force
-RUN npm rebuild lightningcss --build-from-source || npm install lightningcss@latest --force
+# Install dependencies based on the preferred package manager
+COPY package.json package-lock.json* ./
+RUN npm ci
 
-# 3. Copy semua source code
+# Stage 2: Builder
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+# Install runtime dependencies for building
+RUN apk add --no-cache \
+    libc6-compat
+
+# Copy dependencies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# 4. Pastikan typescript dan tailwind bisa jalan
-RUN npm install typescript --save-dev
+# Set environment variables for build
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
-# 5. Jalankan build
+# Build the application
 RUN npm run build
 
-# --- Runner ---
-FROM node:20-bullseye AS runner
+# Stage 3: Runner
+FROM node:20-alpine AS runner
 WORKDIR /app
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-COPY --from=builder /app ./
+# Create a non-root user
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+
+# Copy built application
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Switch to non-root user
+USER nextjs
 
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]

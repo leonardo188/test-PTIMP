@@ -1,43 +1,9 @@
-version: "3.9"
-
 services:
-  # --- Laravel Backend ---
-  laravel:
-    build: ./laravel
-    container_name: laravel_app
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./laravel:/var/www
-    env_file:
-      - ./laravel/.env
-    depends_on:
-      - db
-    networks:
-      - app-net
-
-  # --- Next.js Frontend ---
-  nextjs:
-    build: ./nextjs
-    container_name: nextjs_app
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./nextjs:/app
-    env_file:
-      - ./nextjs/.env.local
-    depends_on:
-      - laravel
-    networks:
-      - app-net
-    command: sh -c "npm run build && npm run start"
-
-
   # --- MySQL Database ---
   db:
-    image: mysql:8
+    image: mysql:8.0
     container_name: mysql_db
-    restart: always
+    restart: unless-stopped
     environment:
       MYSQL_DATABASE: blog_db
       MYSQL_USER: blog_user
@@ -49,9 +15,75 @@ services:
       - db_data:/var/lib/mysql
     networks:
       - app-net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # --- Laravel Backend ---
+  laravel:
+    build:
+      context: ./laravel
+      dockerfile: Dockerfile
+    container_name: laravel_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=blog_db
+      - DB_USERNAME=blog_user
+      - DB_PASSWORD=blog_pass
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_URL=http://localhost:8000
+      - FRONTEND_URL=http://localhost:3000
+      - SESSION_DOMAIN=localhost
+      - SANCTUM_STATEFUL_DOMAINS=localhost:3000
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "php", "artisan", "db:show"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  # --- Next.js Frontend ---
+  nextjs:
+    build:
+      context: ./nextjs
+      dockerfile: Dockerfile
+    container_name: nextjs_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Use 'laravel' hostname for internal Docker network
+      - NEXT_PUBLIC_API_URL=http://laravel:8000/api
+    depends_on:
+      laravel:
+        condition: service_healthy
+    networks:
+      - app-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
 
 networks:
   app-net:
+    driver: bridge
 
 volumes:
   db_data:
