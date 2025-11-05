@@ -26,16 +26,36 @@ if (-not (Test-Path "nextjs\.env.local")) {
 Write-Host "Building Docker images (this may take a few minutes)..." -ForegroundColor Yellow
 docker-compose build
 
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Build failed!" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "Starting containers..." -ForegroundColor Green
 docker-compose up -d
 
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: Failed to start containers!" -ForegroundColor Red
+    exit 1
+}
+
 # Wait for services to be healthy
 Write-Host "Waiting for services to be ready..." -ForegroundColor Yellow
-Start-Sleep -Seconds 10
+Start-Sleep -Seconds 15
+
+# Check Laravel container status
+Write-Host "Checking Laravel container status..." -ForegroundColor Yellow
+$laravel_status = docker-compose ps laravel | Select-String "Up"
+
+if ($laravel_status -eq $null) {
+    Write-Host "WARNING: Laravel container is not healthy. Checking logs..." -ForegroundColor Yellow
+    docker-compose logs laravel | Select-String -Last 20
+    Start-Sleep -Seconds 10
+}
 
 # Generate Laravel app key if needed
 Write-Host "Generating Laravel application key..." -ForegroundColor Yellow
-docker-compose exec -T laravel php artisan key:generate --force
+docker-compose exec -T laravel php artisan key:generate --force 2>$null
 
 Write-Host ""
 Write-Host "Setup complete!" -ForegroundColor Green
@@ -50,3 +70,7 @@ Write-Host "   - Database: localhost:3306"
 Write-Host ""
 Write-Host "View logs: docker-compose logs -f" -ForegroundColor Yellow
 Write-Host "Stop services: docker-compose down" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "If Laravel is not healthy, wait a moment and check:"
+Write-Host "   docker-compose logs laravel"
+

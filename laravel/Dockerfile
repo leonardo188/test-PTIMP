@@ -52,6 +52,10 @@ WORKDIR /var/www
 # Copy application from builder
 COPY --from=builder /var/www /var/www
 
+# Copy .env.example and create .env if not exists (for container startup)
+COPY .env.example /var/www/.env.example
+RUN if [ ! -f /var/www/.env ]; then cp /var/www/.env.example /var/www/.env; fi
+
 # Create necessary directories and set permissions
 RUN mkdir -p /var/www/storage/framework/cache/data \
     && mkdir -p /var/www/storage/framework/sessions \
