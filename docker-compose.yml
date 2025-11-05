@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+  # --- Laravel Backend ---
+  laravel:
+    build: ./laravel
+    container_name: laravel_app
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./laravel:/var/www
+    env_file:
+      - ./laravel/.env
+    depends_on:
+      - db
+    networks:
+      - app-net
+
+  # --- Next.js Frontend ---
+  nextjs:
+    build: ./nextjs
+    container_name: nextjs_app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./nextjs:/app
+    env_file:
+      - ./nextjs/.env.local
+    depends_on:
+      - laravel
+    networks:
+      - app-net
+    command: sh -c "npm run build && npm run start"
+
+
+  # --- MySQL Database ---
+  db:
+    image: mysql:8
+    container_name: mysql_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: blog_db
+      MYSQL_USER: blog_user
+      MYSQL_PASSWORD: blog_pass
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-net
+
+networks:
+  app-net:
+
+volumes:
+  db_data:
